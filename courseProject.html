@@ -61,8 +61,12 @@ img {
 
 
 
-<div id="title" class="section level1">
-<h1>Title</h1>
+<div id="practical-machine-learning-course-project" class="section level1">
+<h1>“Practical Machine Learning” Course project</h1>
+<div id="introduction" class="section level3">
+<h3>Introduction</h3>
+<p>Our data have already been broken into training and test sets. The first step is to get them. I’ve already downloaded them, but the code to do so is below.</p>
+<p>(For a more detailed introduction, see the README)</p>
 <pre class="r"><code>if(file.exists(&quot;data/pml-training.csv&quot;)) {
     print(&quot;File already downloaded&quot;)
 } else {
@@ -80,27 +84,29 @@ download.file(testingURL, &quot;data/pml-testing.csv&quot;)
 <pre class="r"><code>library(caret)</code></pre>
 <pre><code>## Loading required package: lattice
 ## Loading required package: ggplot2</code></pre>
+<p>We’ll ignore the test data until we’ve selected a model. After reading in the training data, there’s a little tidying to do:</p>
+<ul>
+<li>Replace empty cells and cells with errors with <code>NA</code>s</li>
+<li>Remove rows that only have data for the summary variables</li>
+</ul>
 <pre class="r"><code>train.data &lt;- read.csv(&quot;data/pml-training.csv&quot;)
-
-## Lots of empty cells and div/0 cells, replace with NA
 train.data[train.data==&quot;&quot;] &lt;- NA
 train.data[train.data==&quot;#DIV/0!&quot;] &lt;- NA
 na.rows &lt;- apply(train.data, 1, function(x){sum(is.na(x))})
-
-## remove summary columns
 na.rm.index &lt;- which(is.na(train.data[1,]))
 train.data &lt;- train.data[, -na.rm.index]</code></pre>
-<p>Patterns of NAs–They only appear in the columns that are mostly empty when new_window==yes, there are additional data in the testing set, none of the observations are a new window. I think I’ll exclude those. Simalarly, summary columns can probably be excluded</p>
-<p>Further split training set into training/test sets</p>
+<p>In order to evaluate our model before submitting it for grading, we’ll designate a partition of it for validation</p>
 <pre class="r"><code>set.seed(12345)
 inTrain &lt;- createDataPartition(y=train.data$classe,p=0.7, list=FALSE) 
 train.data.train &lt;- train.data[inTrain,]
 train.data.test &lt;- train.data[-inTrain,]</code></pre>
+<p>Now that the data are prepared, fitting the model is fairly straightforward. Ignoring user, window and time data, I built a random forest model training <code>classe</code> on all of the motion sensor variables, with mostly default arguments. I anticipated that this crude model would need to be adjusted, but it actually performs very well.</p>
 <pre class="r"><code>set.seed(12345)
 modFit &lt;- train(classe ~ ., data=train.data.train[,8:60], method=&quot;rf&quot;, prox=TRUE) </code></pre>
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-10
 ## Type rfNews() to see new features/changes/bug fixes.</code></pre>
+<p>I was initially worried the model was overfitting the training set; however, it performs very well on the validation data, and was 100% accurate on the test data.</p>
 <pre class="r"><code>save(modFit, file = &quot;mod2.rda&quot;)
 pred.train &lt;- predict(modFit, train.data.train)</code></pre>
 <pre><code>## Loading required package: randomForest
@@ -125,14 +131,16 @@ table(pred.test,train.data.test$classe)</code></pre>
 ##         C    0    4 1008   27    0
 ##         D    0    0    4  937    3
 ##         E    0    0    0    0 1079</code></pre>
+<p>At a glance you can tell that the in-sample accuracy 100%. It perhaps overfits the data, but it is also has 99% out-of-sample accuracy.</p>
+<pre class="r"><code>sum(train.data.test$predRight)/nrow(train.data.test)</code></pre>
+<pre><code>## [1] 0.988785</code></pre>
+<p>And finally, apply the model to the testing set and export the <code>.txt</code> files</p>
 <pre class="r"><code>setwd(&quot;data&quot;)
 test.data &lt;- read.csv(&quot;pml-testing.csv&quot;)
 test.data[test.data==&quot;&quot;] &lt;- NA
 test.data[test.data==&quot;#DIV/0!&quot;] &lt;- NA
 test.data &lt;- test.data[, -na.rm.index]
-
 answers = predict(modFit, test.data)
-
 pml_write_files = function(x){
   n = length(x)
   for(i in 1:n){
@@ -140,8 +148,8 @@ pml_write_files = function(x){
     write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
   }
 }
-
 pml_write_files(answers)</code></pre>
+</div>
 </div>
 
 
